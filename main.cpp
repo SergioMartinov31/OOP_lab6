@@ -139,15 +139,44 @@ std::ostream& operator<<(std::ostream& os, const set_t& array) {
 
 set_t fight(const set_t& array, size_t distance) {
     set_t dead_list;
+    std::set<NPC*> dead_raw; 
 
-    for (const auto& attacker : array)
-        for (const auto& defender : array)
-            if ((attacker != defender) && (attacker->is_close(defender, distance))) {
-                bool success = defender->accept(attacker);
-                if (success)
-                    dead_list.insert(defender);
+    std::vector<std::shared_ptr<NPC>> list(array.begin(), array.end());
+    size_t n = list.size();
+
+    for (size_t i = 0; i < n; ++i) {
+        auto A = list[i];
+        if (!A) continue;
+
+        for (size_t j = i + 1; j < n; ++j) {
+            auto B = list[j];
+            if (!B) continue;
+
+
+            if (dead_raw.count(A.get()) || dead_raw.count(B.get()))
+                continue;
+
+            if (!A->is_close(B, distance))
+                continue;
+
+            bool A_kills_B = B->accept(A);
+
+
+            bool B_kills_A = A->accept(B);
+
+            if (A_kills_B) {
+                dead_raw.insert(B.get());
+                dead_list.insert(B);
+                A->fight_notify(B, true);
             }
 
+            if (B_kills_A) {
+                dead_raw.insert(A.get());
+                dead_list.insert(A);
+                B->fight_notify(A, true);
+            }
+        }
+    }
     return dead_list;
 }
 
